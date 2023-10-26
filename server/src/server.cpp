@@ -122,12 +122,19 @@ std::map<int, string> service_map_reverse = {
 
 std::map<string, string> registered_services;
 
+// json services = {
+//    {"primary", {"10.30.100.1", "50001"}},
+//      {"sift", {"10.30.101.1", "50002"}},
+//      {"encoding", {"10.30.102.1", "50003"}},
+//      {"lsh", {"10.30.103.1", "50004"}},
+//      {"matching", {"10.30.104.1", "50005"}}};
+
 json services = {
-   {"primary", {"10.30.100.1", "50001"}},
-     {"sift", {"10.30.101.1", "50002"}},
-     {"encoding", {"10.30.102.1", "50003"}},
-     {"lsh", {"10.30.103.1", "50004"}},
-     {"matching", {"10.30.104.1", "50005"}}};
+   {"primary", {"10.38.151.146", "50001"}},
+   {"sift", {"10.38.151.146", "51002"}},
+   {"encoding", {"10.38.151.146", "50003"}},
+   {"lsh", {"10.38.151.146", "50004"}},
+   {"matching", {"10.38.151.146", "50005"}}};
 
 json services_primary_knowledge;
 
@@ -412,7 +419,7 @@ void *ThreadUDPReceiverFunction(void *socket)
                     string client_id_corr = client_id_string.substr(0, 4);
                     char *client_id_ptr = &client_id_corr[0];
 
-                    print_log(service, string(client_id_ptr), to_string(curr_frame.frame_no), "Received data from '" + services_outline["val_name"][to_string(previous_service_val)] + "' service and will now proceed with analysis");
+                    // print_log(service, string(client_id_ptr), to_string(curr_frame.frame_no), "Received data from '" + services_outline["val_name"][to_string(previous_service_val)] + "' service and will now proceed with analysis");
 
                     // if matching service, proceed to request the corresponding data from sift
                     if (service_value == 5)
@@ -436,6 +443,8 @@ void *ThreadUDPReceiverFunction(void *socket)
                         string client_id_string = curr_frame.client_id;
                         string client_id_corr = client_id_string.substr(0, 4);
                         curr_frame.client_id = &client_id_corr[0];
+
+                        //memcpy(&(ms_buffer[0]), client_id, sizeof(client_id));
 
                         charint matching_sift_fno;
                         matching_sift_fno.i = curr_frame.frame_no;
@@ -556,11 +565,126 @@ void *ThreadUDPReceiverFunction(void *socket)
                 enet_packet_destroy(event.packet);
                 enet_host_destroy(client);
 
+                // while (enet_host_service (client, & event, 10) > 0)
+                // {
+                //     switch (event.type)
+                //     {
+                //     case ENET_EVENT_TYPE_RECEIVE:
+                //         enet_packet_destroy (event.packet);
+                //         break;
+                //     case ENET_EVENT_TYPE_DISCONNECT:
+                //         print_log(service, string(curr_frame.client_id), to_string(curr_frame.frame_no), "Disconnection from matching succesful");
+                //         break;
+                //     }
+                // }
+
+                // free(msd_data_buffer);
             }
         
         }
     }
 }
+
+void *ThreadENETReceiver(void *socket) {
+    print_log(service, "0", "0", "Created thread to listen for data packets");
+
+    ENetAddress address;
+    ENetHost * server;
+
+    int listener_port = 51002;
+    int listener_timeout = 100000000;
+
+    address.host = ENET_HOST_ANY;
+    address.port = listener_port;
+
+    char sift_sending_ip[80];
+    int sift_sending_port;
+
+    int recv_data_len;
+    char* recv_buffer;
+
+    char tmp[4];
+
+    char client_id[4];
+    char *client_id_ptr = client_id;
+    string client_id_string;
+    string client_id_corr;
+
+    int frame_no;
+    int complete_data_size;
+
+    char *sift_data_buffer;
+
+    inter_service_buffer results;
+
+    server = enet_host_create(&address, 100, 2, 0, 0);
+    if (server == NULL)
+    {
+        fprintf(stderr, 
+                "An error occurred while trying to create an ENet server host.\n");
+        exit(EXIT_FAILURE);
+    } else {
+        print_log(service, "0", "0", "ENet server host created to listen on port " + to_string(listener_port));
+    }
+
+    ENetEvent event;
+    print_log(service, "0", "0", "ENet server will keep listening for " + to_string(listener_timeout / 1000) + " seconds");
+    while (enet_host_service(server, &event, listener_timeout) > 0)
+    {
+        
+        switch (event.type)
+        {
+        case ENET_EVENT_TYPE_CONNECT:
+            enet_address_get_host_ip(&event.peer->address, sift_sending_ip, sizeof(sift_sending_ip));
+            sift_sending_port = event.peer -> address.port;
+
+            print_log(service, "0", "0", "connection ");
+            // event.peer -> data = (void *)"Client information";
+            break;
+        case ENET_EVENT_TYPE_RECEIVE:
+            recv_data_len = event.packet -> dataLength;
+            recv_buffer = new char[recv_data_len];
+
+            memset(recv_buffer, 0, sizeof(recv_data_len));
+            memcpy(recv_buffer, event.packet -> data, recv_data_len);
+            
+            memcpy(client_id, recv_buffer, 4);
+            client_id_string = client_id;
+            client_id_corr = client_id_string.substr(0, 4);
+            client_id_ptr = &client_id_corr[0];
+
+            memcpy(tmp, &(recv_buffer[4]), 4);
+            frame_no = *(int *)tmp;
+
+            memcpy(tmp, &(recv_buffer[16]), 4);
+            complete_data_size = *(int *)tmp;
+
+            print_log(service, string(client_id_ptr), to_string(frame_no),
+                    "data received for Frame " + to_string(0));
+
+            // sift_data_buffer = new char[complete_data_size];
+            // memset(sift_data_buffer, 0, sizeof(recv_data_len));
+            // memcpy(sift_data_buffer, &(recv_buffer[20]), complete_data_size);
+
+            // matching_sift curr_sift_data;
+            // curr_sift_data.sift_data = sift_data_buffer;
+            // curr_sift_data.frame_no = frame_no;
+            // curr_sift_data.client_id = client_id_ptr;
+
+            // sift_data_queue.push(curr_sift_data);
+
+            enet_packet_destroy(event.packet); // clean up packet
+            break;
+        case ENET_EVENT_TYPE_DISCONNECT:
+            print_log(service, "0", "0",
+                    "sift has disconnected");
+            /* Reset the peer's client information. */
+            event.peer -> data = NULL;
+        }
+    }
+    print_log(service, "0", "0", "ENet server has timed out");
+}
+
 
 void siftdata_reconstructor(char *sd_char_array, matchingSiftItem receivedSiftData)
 {
@@ -577,6 +701,7 @@ void siftdata_reconstructor(char *sd_char_array, matchingSiftItem receivedSiftDa
     curr_posn += 4;
 
     SiftPoint *cpu_data = (SiftPoint *)calloc(sd_num_pts, sizeof(SiftPoint));
+    // SiftPoint *cpu_data = (SiftPoint *)malloc(sd_num_pts, sizeof(SiftPoint));
 
     for (int i = 0; i < sd_num_pts; i++)
     {
@@ -725,7 +850,9 @@ void *matching_sift_data_analyser(void *input){
             curRes.previous_service.i = BOUNDARY;
 
             curRes.results_buffer = new char[100 * curRes.buffer_size.i];
-
+            //curRes.buffer = (unsigned char*)malloc(100 * curRes.buffer_size.i);
+            // memset(curRes.results_buffer, 0, 100 * curRes.buffer_size.i);
+            
             int pointer = 0;
             memcpy(&(curRes.results_buffer[pointer]), marker.markerID.b, 4);
             pointer += 4;
@@ -750,6 +877,8 @@ void *matching_sift_data_analyser(void *input){
             recognizedMarkerID = marker.markerID.i;
 
             print_log(service, string(md_client_id), to_string(md_frame_no), "matching analysis is complete, will pass to client forwarder");
+
+            // cout << recognizedMarkerID << endl;
         }
         else
         {
@@ -1047,11 +1176,61 @@ void *ThreadUDPSenderFunction(void *socket)
             memcpy(&(buffer[32]), curr_item.client_port.b, 4);
             memcpy(&(buffer[36]), curr_item.previous_service.b, 4);
             memcpy(&(buffer[60]), &(curr_item.image_buffer)[0], curr_item.buffer_size.i + 1);
-            sendto(next_service_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&next_service_addr, next_service_addrlen);
-            close(next_service_socket);
+            // sendto(next_service_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&next_service_addr, next_service_addrlen);
+            // close(next_service_socket);
             print_log(service, string(curr_item.client_id), to_string(curr_item.frame_no.i),
                       "Frame " + to_string(curr_item.frame_no.i) + " sent to " + next_service +
                           " service for processing with a payload size of " + to_string(curr_item.buffer_size.i));
+
+            ENetHost * client;
+            client = enet_host_create(NULL, 1, 2, 0, 0);
+
+            ENetAddress address;
+            ENetEvent event;
+            ENetPeer *peer;
+
+            int next_service_val = service_value + 1;
+            string next_service = service_map_reverse[next_service_val];
+            json next_service_details = services[next_service];
+
+            string next_service_ip = next_service_details[0];
+            string next_service_port_string = next_service_details[1];
+            int next_service_port = stoi(next_service_port_string);
+
+            cout << next_service_ip << " " << next_service_port << endl;
+
+            enet_address_set_host(&address, next_service_ip.c_str());
+            address.port = next_service_port;
+
+            peer = enet_host_connect(client, &address, 2, 0);
+            enet_peer_timeout(peer, 15, 5, 20);
+
+            if (peer == NULL)
+            {
+                print_log(service, string(curr_item.client_id), to_string(curr_item.frame_no.i), "No available peers for initiating an ENet connection to matching");
+                // system("pause");
+                exit(EXIT_FAILURE);
+            }
+            if (enet_host_service(client, &event, 1) > 0 && event.type == ENET_EVENT_TYPE_CONNECT)
+            {
+                print_log(service, string(curr_item.client_id), to_string(curr_item.frame_no.i), "Connection to encoding succeeded");
+            }
+            else
+            {
+                enet_peer_reset(peer);
+                print_log(service, string(curr_item.client_id), to_string(curr_item.frame_no.i), "Connection to encoding failed");
+            }
+
+            ENetPacket *packet = enet_packet_create(buffer, sizeof(buffer), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+            enet_peer_send(peer, 0, packet);
+
+            print_log(service, string(curr_item.client_id), to_string(curr_item.frame_no.i), "Sent data of size ");
+
+            enet_host_flush(client);
+            // enet_peer_reset(peer);
+            enet_peer_disconnect_now(peer, 0);
+            enet_packet_destroy(event.packet);
+            enet_host_destroy(client);
         }
         else if (service == "sift")
         {
@@ -1169,7 +1348,7 @@ void *ThreadUDPSenderFunction(void *socket)
             // int client_device_port = htons(client_addr.sin_port);
 
             // cout << "[DEBUG] client has IP of " << client_device_ip << " and port " << to_string(client_device_port) << endl;
-        }
+            }
         else
         {
             inter_service_buffer curr_item = inter_service_data.front();
@@ -1270,7 +1449,7 @@ void *ThreadProcessFunction(void *param)
                 char *raw_sift_data;    // raw SIFT data needed by matching
 
                 vector<uchar> imgdata(frame_data, frame_data + frame_size);
-                Mat img_scene = imdecode(imgdata, CV_LOAD_IMAGE_GRAYSCALE);
+                Mat img_scene = imdecode(imgdata, IMREAD_GRAYSCALE);
                 imwrite("query.jpg", img_scene);
                 Mat detect = img_scene(Rect(RECO_W_OFFSET, RECO_H_OFFSET, 160, 270));
 
@@ -1356,6 +1535,7 @@ void *ThreadProcessFunction(void *param)
                 memcpy(sift_resg, &(frame_data[4]), frame_size);
 
                 float *siftres = new float[128 * sift_result];
+                // float *siftres = (float*)malloc(128*sift_result);
 
                 int data_index = 0;
                 for (int i = 0; i < sift_result * 128; i++)
@@ -1514,7 +1694,7 @@ void *ThreadProcessFunction(void *param)
 void runServer(int port, string service)
 {
     pthread_t senderThread, receiverThread, imageProcessThread, processThread;
-    pthread_t sift_listen_thread, encoding_listen_thread, matching_sift_thread;
+    pthread_t sift_listen_thread, encoding_listen_thread, matching_sift_thread, enet_listener_thread;
     char buffer[PACKET_SIZE];
     char fileid[4];
     int status = 0;
@@ -1557,13 +1737,17 @@ void runServer(int port, string service)
             next_service_addr.sin_addr.s_addr = inet_addr(sift_ip.c_str());
             next_service_addr.sin_port = htons(sift_port);
         }
-        
         else if (service == "matching")
         {
             pthread_create(&sift_listen_thread, NULL, udp_sift_data_listener, NULL);
             pthread_create(&matching_sift_thread, NULL, matching_sift_data_analyser, NULL);
         }
     } 
+    else if(service == "sift")
+    {
+        cout << "AHHH" << endl;
+        pthread_create(&enet_listener_thread, NULL, ThreadENETReceiver, NULL);
+    }
     else if (service == "encoding")
     {
         pthread_create(&encoding_listen_thread, NULL, udp_encoding_data_listener, NULL);
@@ -1592,6 +1776,11 @@ void runServer(int port, string service)
     pthread_join(receiverThread, NULL);
     pthread_join(senderThread, NULL);
     pthread_join(imageProcessThread, NULL);
+
+    if (service == "sift")
+    {
+        pthread_join(enet_listener_thread, NULL);
+    }
 
     if (service == "matching")
     {

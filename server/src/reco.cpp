@@ -2,6 +2,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "sys/times.h"
+//#include "sys/vtimes.h"
 
 #include "reco.hpp"
 #include <fstream>
@@ -143,7 +144,10 @@ char *export_siftdata(SiftData &data_struct, char **sift_data_array)
 
     // allocating memory into char*, taking two array as the last two features
     // are arrays of size 3 and 128 respectively
+    // int sd_size = num_points * (spf - 2 + 3 + 128);
     int sd_size = num_points * (4 * (spf + 3 + 128));
+    // char *sift_data = (char *)calloc(sd_size, sizeof(float));
+    // char *sift_data = new char[sd_size];
 
     *sift_data_array = (char*)malloc(sd_size);
     char *sift_data = *sift_data_array;
@@ -249,6 +253,7 @@ char *export_siftdata(SiftData &data_struct, char **sift_data_array)
             curr_posn += 4;
         }
     }
+    // return sift_data;
 }
 
 tuple<int, float *> sift_gpu(Mat img, float **siftres, float **siftframe, SiftData &siftData, int &w, int &h, bool online, bool isColorImage)
@@ -259,7 +264,7 @@ tuple<int, float *> sift_gpu(Mat img, float **siftres, float **siftframe, SiftDa
 
     // if(online) resize(img, img, Size(), 0.5, 0.5);
     if (isColorImage)
-        cvtColor(img, img, CV_BGR2GRAY);
+        cvtColor(img, img, COLOR_BGR2GRAY);
     img.convertTo(img, CV_32FC1);
     start = wallclock();
     w = img.cols;
@@ -277,7 +282,8 @@ tuple<int, float *> sift_gpu(Mat img, float **siftres, float **siftframe, SiftDa
     numPts = siftData.numPts;
     *siftres = (float *)malloc(sizeof(float) * 128 * numPts);
     *siftframe = (float *)malloc(sizeof(float) * 2 * numPts);
-
+    // *siftres = (float *)calloc(sizeof(float), sizeof(float)*128*numPts);
+    // *siftframe = (float *)calloc(sizeof(char), sizeof(float)*2*numPts);
     float *curRes = *siftres;
     float *curframe = *siftframe;
     SiftPoint *p = siftData.h_data;
@@ -292,8 +298,11 @@ tuple<int, float *> sift_gpu(Mat img, float **siftres, float **siftframe, SiftDa
         p++;
     }
 
+    // char *final_sift_data = export_siftdata(siftData);
+
     if (!online)
         FreeSiftData(siftData); //
+    // FreeSiftData(siftData);
 
     finish = wallclock();
     durationgmm = (double)(finish - start);
@@ -308,7 +317,7 @@ tuple<float *> sift_gpu_new(Mat img, float **siftres, float **siftframe, SiftDat
     double start, finish, durationgmm;
 
     if (isColorImage)
-        cvtColor(img, img, CV_BGR2GRAY);
+        cvtColor(img, img, COLOR_BGR2GRAY);
     img.convertTo(img, CV_32FC1);
     start = wallclock();
     w = img.cols;
@@ -325,7 +334,8 @@ tuple<float *> sift_gpu_new(Mat img, float **siftres, float **siftframe, SiftDat
     num_points = siftData.numPts;
     *siftres = (float *)malloc(sizeof(float) * 128 * num_points);
     *siftframe = (float *)malloc(sizeof(float) * 2 * num_points);
-
+    // *siftres = (float *)calloc(sizeof(float), sizeof(float)*128*num_points);
+    // *siftframe = (float *)calloc(sizeof(char), sizeof(float)*2*num_points);
     float *curRes = *siftres;
     float *curframe = *siftframe;
     SiftPoint *p = siftData.h_data;
@@ -340,10 +350,12 @@ tuple<float *> sift_gpu_new(Mat img, float **siftres, float **siftframe, SiftDat
         p++;
     }
 
+    // *raw_sift_data = export_siftdata(siftData);
     export_siftdata(siftData, raw_sift_data);
 
     if (!online)
         FreeSiftData(siftData);
+    // FreeSiftData(siftData);
 
     finish = wallclock();
     durationgmm = (double)(finish - start);
@@ -431,6 +443,7 @@ tuple<int, char *> encoding(float *siftresg, int siftResult, vector<float> &enc_
 
     // transforming the vector of floats into a char*
     float *enc_vec_floats = &(enc_vec[0]);
+    // encoded_vector = new char[4 * SIZE];
     memset(encoded_vector, 0, 4 * SIZE);
     int buffer_count = 0;
     for (float x : enc_vec)
@@ -489,7 +502,7 @@ bool matching(vector<int> result, SiftData &tData, recognizedMarker &marker)
     {
         print_log("matching", "0", "0", "Testing " + to_string(result[idx]) + " " + whole_list[result[idx]]);
 
-        Mat image = imread(whole_list[result[idx]], CV_LOAD_IMAGE_COLOR);
+        Mat image = imread(whole_list[result[idx]], IMREAD_COLOR);
         SiftData sData;
         int w, h;
         float *a, *b;
@@ -507,10 +520,10 @@ bool matching(vector<int> result, SiftData &tData, recognizedMarker &marker)
             Mat H(3, 3, CV_32FC1, homography);
 
             vector<Point2f> obj_corners(4), scene_corners(4);
-            obj_corners[0] = cvPoint(0, 0);
-            obj_corners[1] = cvPoint(image.cols, 0);
-            obj_corners[2] = cvPoint(image.cols, image.rows);
-            obj_corners[3] = cvPoint(0, image.rows);
+            obj_corners[0] = Point(0, 0);
+            obj_corners[1] = Point(image.cols, 0);
+            obj_corners[2] = Point(image.cols, image.rows);
+            obj_corners[3] = Point(0, image.rows);
 
             try
             {
@@ -533,6 +546,7 @@ bool matching(vector<int> result, SiftData &tData, recognizedMarker &marker)
             }
             marker.markername = "gpu_recognized_image.";
 
+            // cout<<"after matching "<<wallclock()<<endl;
             FreeSiftData(sData);
             FreeSiftData(tData);
             print_log("matching", "0", "0", "Recognised object(s)");
@@ -542,7 +556,8 @@ bool matching(vector<int> result, SiftData &tData, recognizedMarker &marker)
         {
             print_log("matching", "0", "0", "No matching objects");
         }
-
+        // free(a);
+        // free(b);
     }
     FreeSiftData(tData);
 }
@@ -631,7 +646,7 @@ void encodeDatabase(int factor, int nn)
     for (int i = 0; i < whole_list.size(); i++)
     {
         SiftData sData;
-        Mat image = imread(whole_list[i], CV_LOAD_IMAGE_COLOR);
+        Mat image = imread(whole_list[i], IMREAD_COLOR);
 #ifdef TEST
         onlineProcessing(image, sData, train[i], true, true, false);
         if (i < 20)
@@ -691,12 +706,12 @@ bool query(Mat queryImage, recognizedMarker &marker)
 
 #ifdef TEST
         // Mat image(741, 500, CV_8UC1);
-        Mat image = imread(whole_list[result[idx]], CV_LOAD_IMAGE_COLOR);
+        Mat image = imread(whole_list[result[idx]], IMREAD_COLOR);
         if (result[idx] >= 100)
             break;
         SiftData sData = trainData[result[idx]];
 #else
-        Mat image = imread(whole_list[result[idx]], CV_LOAD_IMAGE_COLOR);
+        Mat image = imread(whole_list[result[idx]], IMREAD_COLOR);
         SiftData sData;
         int w, h;
         float *a, *b;
@@ -718,10 +733,10 @@ bool query(Mat queryImage, recognizedMarker &marker)
             Mat H(3, 3, CV_32FC1, homography);
 
             vector<Point2f> obj_corners(4), scene_corners(4);
-            obj_corners[0] = cvPoint(0, 0);
-            obj_corners[1] = cvPoint(image.cols, 0);
-            obj_corners[2] = cvPoint(image.cols, image.rows);
-            obj_corners[3] = cvPoint(0, image.rows);
+            obj_corners[0] = Point(0, 0);
+            obj_corners[1] = Point(image.cols, 0);
+            obj_corners[2] = Point(image.cols, image.rows);
+            obj_corners[3] = Point(0, image.rows);
 
             try
             {
@@ -835,7 +850,7 @@ void addCacheItem(frame_buffer curr_frame, resBuffer curRes)
     vector<float> test;
 
     vector<uchar> imagedata(curr_frame.buffer, curr_frame.buffer + curr_frame.buffer_size);
-    Mat queryImage = imdecode(imagedata, CV_LOAD_IMAGE_GRAYSCALE);
+    Mat queryImage = imdecode(imagedata, IMREAD_GRAYSCALE);
     Mat cacheQueryImage = queryImage(Rect(RECO_W_OFFSET, RECO_H_OFFSET, 160, 270));
 
     onlineProcessing(cacheQueryImage, tData, test, true, false, true);
@@ -958,7 +973,7 @@ void trainParams()
         cout << "Train file " << i << ": " << whole_list[i] << endl;
         //    if(count == 2)
         SiftData siftData;
-        Mat image = imread(whole_list[i], CV_LOAD_IMAGE_COLOR);
+        Mat image = imread(whole_list[i], IMREAD_COLOR);
 
         auto sift_gpu_results = sift_gpu(image, &sift_res, &sift_frame, siftData, width, height, false, true);
         int pre_size = get<0>(sift_gpu_results);
@@ -1006,7 +1021,7 @@ void trainParams()
     projectionCenter = (float *)malloc(128 * sizeof(float));
     projection = (float *)malloc(128 * 80 * sizeof(float));
 
-    PCA pca(training_descriptors, Mat(), CV_PCA_DATA_AS_ROW, 80);
+    PCA pca(training_descriptors, Mat(), PCA::DATA_AS_ROW, 80);
     for (int i = 0; i < 128; i++)
     {
         projectionCenter[i] = pca.mean.at<float>(0, i);
@@ -1146,7 +1161,7 @@ void trainCacheParams()
         // get descriptors
         cout << "Train file " << i << ": " << whole_list[i] << endl;
         SiftData siftData;
-        Mat image = imread(whole_list[i], CV_LOAD_IMAGE_COLOR);
+        Mat image = imread(whole_list[i], IMREAD_COLOR);
         auto sift_gpu_results = sift_gpu(image, &sift_res, &sift_frame, siftData, width, height, false, true);
         int pre_size = get<0>(sift_gpu_results);
 #ifdef FEATURE_CHECK
@@ -1346,7 +1361,7 @@ void distribution(int *order)
 
 void ThreadQueryFunction()
 {
-    Mat image = imread("/home/jacky/Desktop/mobile_ar_system/ar_server/data/demo/test/fantastic.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+    Mat image = imread("/home/jacky/Desktop/mobile_ar_system/ar_server/data/demo/test/fantastic.jpg", IMREAD_GRAYSCALE);
     recognizedMarker marker;
 
     for (int i = 0; i < 10; i++)

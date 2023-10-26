@@ -13,7 +13,7 @@ EIGEN_ROOT = ../lib/eigen
 FALCONN_ROOT = ../lib/falconn
 VL_ROOT = ../lib/vlfeat
 
-INC += -I$(SIFT_ROOT) -I$(EIGEN_ROOT) -I$(FALCONN_ROOT)/src/include -I$(VL_ROOT) -I/usr/include/opencv
+INC += -I$(SIFT_ROOT) -I$(EIGEN_ROOT) -I$(FALCONN_ROOT)/src/include -I$(VL_ROOT) -I/usr/local/include/opencv4
 
 LIB = -lm -lrt -lpthread -ldl -pipe -L$(SIFT_ROOT) -lcudasift -std=c++0x -pthread 
 LIB += -lcudart -lcufft 
@@ -21,7 +21,7 @@ LIB += `pkg-config --cflags --libs opencv`
 LIB += -fopenmp -lcublas -lenet
 LIBS += -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_videoio
 
-NVCC	= /usr/local/cuda/bin/nvcc -arch=sm_30 -m 64 $(INC) 
+NVCC	= /usr/local/cuda/bin/nvcc -arch=sm_60 -m 64 $(INC) 
 
 CXX = g++ -pipe
 CC = gcc -pipe
@@ -46,4 +46,3 @@ clean:
 
 .DEFAULT:
 	@echo The target \"$@\" does not exist in Makefile.
-

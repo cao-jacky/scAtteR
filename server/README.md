@@ -66,34 +66,30 @@ vim vl/kmeans.c
 :wq
 
 # Return to scAtteR server's source files and compile
-cd ../../src
-mkdir build && cd build
-cmake ..
+cd ../../build
+make
 
 # When building scAtteR, there may be several errors which occur. This is due to incompatabilities between libraries or NVIDIA GPU hardware, and must be debugged accordingly. We apologise that there cannot be more help with this. 
 make 
 
 ```
 ### Running
-The executable `server` can be used to run the different available services (`primary`, `sift`, `encoding`, `lsh`, `matching`) of the augmented reality pipeline. The following command can be used to run any of these services
+The executable `server` can be used to run the different available services (`primary`, `sift`, `encoding`, `lsh`, `matching`) of the augmented reality pipeline. The following command can be used to run any of these services. Note the need to add the IP of the `primary`` service as the second parameter. 
 
 ```sh
-./server service_name
+./server service_name primary_service_ip
 ```
 
-You may notice that the services may not communicate to each other, as the default service IP and port settings need to be changed. This can be done by editing the `service_details_default.json` file in `data` and changing the `ip` and `port` variables. The services can be deployed on one machine through localhost or distributed amongst several nodes - the IP and port details should be changed accordingly. 
+You may notice that the services may not communicate to each other, as the default service IP and port settings need to be changed. This can be done by editing the JSON structure at the top of `server.cpp` file in `src` and changing the `ip` and `port` variables of the servies. The services can be deployed on one machine through localhost or distributed amongst several nodes - the IP and port details should be changed accordingly. 
 
-Here is an example service structure and explanations:
-```json
-{
-    "service_name": "primary",  // the name of the service
-    "order": 1,                 // the order of running, i.e., step in the pipeline
-    "preprocessing": false,     // whether the service requires pre-processing of data 
-    "server": {
-        "ip": "10.30.100.1",    // the IP address of this service 
-        "port": 50001           // the port of this service
-    }
-}
+Here is the service structure and explanations:
+```cpp
+json_services = {
+   {"primary", {"10.38.151.146", "50001"}}, // service name as the key, then a sub-structure which contains its IP and port 
+   {"sift", {"10.38.151.146", "51002"}},
+   {"encoding", {"10.38.151.146", "50003"}},
+   {"lsh", {"10.38.151.146", "50004"}},
+   {"matching", {"10.38.151.146", "50005"}}};
 ```
 
 ### Deployment specifications
