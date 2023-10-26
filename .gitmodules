@@ -1,0 +1,12 @@
+[submodule "server/lib/cudasift"]
+	path = server/lib/cudasift
+	url = https://github.com/Celebrandil/CudaSift.git
+[submodule "server/lib/eigen"]
+	path = server/lib/eigen
+	url = https://github.com/eigenteam/eigen-git-mirror.git
+[submodule "server/lib/vlfeat"]
+	path = server/lib/vlfeat
+	url = https://github.com/vlfeat/vlfeat.git
+[submodule "server/lib/falconn"]
+	path = server/lib/falconn
+	url = https://github.com/cao-jacky/FALCONN.git
